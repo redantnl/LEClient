@@ -34,7 +34,6 @@ use Exception;
  * @author     Youri van Weegberg <youri@yourivw.nl>
  * @copyright  2018 Youri van Weegberg
  * @license    https://opensource.org/licenses/mit-license.php  MIT License
- * @version    1.1.4
  * @link       https://github.com/yourivw/LEClient
  * @since      Class available since Release 1.0.0
  */
@@ -46,7 +45,7 @@ class LEFunctions
      * @param string	$directory		The directory in which to store the new keys. If set to null or empty string - privateKeyFile and publicKeyFile will be treated as absolute paths.
      * @param string	$privateKeyFile	The filename for the private key file.
      * @param string	$publicKeyFile  The filename for the public key file.
-     * @param string	$keySize 	RSA key size, must be between 2048 and 4096 (default is 4096)
+     * @param string	$keySize 		RSA key size, must be between 2048 and 4096 (default is 4096)
      */
 	public static function RSAGenerateKeys($directory, $privateKeyFile = 'private.pem', $publicKeyFile = 'public.pem', $keySize = 4096)
 	{
@@ -57,7 +56,7 @@ class LEFunctions
 			"private_key_type" => OPENSSL_KEYTYPE_RSA,
 			"private_key_bits" => intval($keySize),
 		));
-		
+
 		if ($res === false) {
 			$error = "Could not generate key pair! Check your OpenSSL configuration. OpenSSL Error: ".PHP_EOL;
 			while($message = openssl_error_string()){
@@ -66,7 +65,7 @@ class LEFunctions
 			throw new \RuntimeException($error);
 		}
 
-		if(!openssl_pkey_export($res, $privateKey, NULL)) {
+		if(!openssl_pkey_export($res, $privateKey)) {
 			$error = "RSA keypair export failed!! Error: ".PHP_EOL;
 			while($message = openssl_error_string()){
 				$error .= $message.PHP_EOL;
@@ -96,12 +95,12 @@ class LEFunctions
      * @param string	$directory		The directory in which to store the new keys. If set to null or empty string - privateKeyFile and publicKeyFile will be treated as absolute paths.
      * @param string	$privateKeyFile	The filename for the private key file.
      * @param string	$publicKeyFile  The filename for the public key file.
-     * @param string	$keysize  EC key size, possible values are 256 (prime256v1) or 384 (secp384r1), default is 256
+     * @param string	$keysize  		EC key size, possible values are 256 (prime256v1) or 384 (secp384r1), default is 256
      */
 	public static function ECGenerateKeys($directory, $privateKeyFile = 'private.pem', $publicKeyFile = 'public.pem', $keySize = 256)
 	{
 		if (version_compare(PHP_VERSION, '7.1.0') == -1) throw new \RuntimeException("PHP 7.1+ required for EC keys.");
-		
+
 		if ($keySize == 256)
 		{
 				$res = openssl_pkey_new(array(
@@ -226,16 +225,24 @@ class LEFunctions
      */
 	public static function checkDNSChallenge($domain, $DNSDigest)
 	{
-		$DNS = '_acme-challenge.' . str_replace('*.', '', $domain);
-		$records = dns_get_record($DNS, DNS_TXT);
-		foreach($records as $record)
+		$requestURL = 'https://dns.google.com/resolve?name=_acme-challenge.' . $domain . '&type=TXT';
+		$handle = curl_init();
+        curl_setopt($handle, CURLOPT_URL, $requestURL);
+        curl_setopt($handle, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($handle, CURLOPT_FOLLOWLOCATION, true);
+        $response = json_decode(trim(curl_exec($handle)));
+		if($response->Status === 0 && isset($response->Answer))
 		{
-			if($record['host'] == $DNS && $record['type'] == 'TXT' && $record['txt'] == $DNSDigest) return true;
+			foreach($response->Answer as $answer) 
+			{
+				if($answer->type === 16)
+				{
+					if($answer->data === ('"' . $DNSDigest . '"')) return true;
+				}
+			}
 		}
 		return false;
 	}
-
-
 
     /**
      * Creates a simple .htaccess file in $directory which denies from all.
@@ -244,8 +251,12 @@ class LEFunctions
      */
 	public static function createhtaccess($directory)
 	{
-		file_put_contents($directory . '.htaccess', "order deny,allow\ndeny from all");
+		$htaccess = '<ifModule mod_authz_core.c>' . "\n"
+			. '    Require all denied' . "\n"
+			. '</ifModule>' . "\n"
+			. '<ifModule !mod_authz_core.c>' . "\n"
+			. '    Deny from all' . "\n"
+			. '</ifModule>' . "\n";
+		file_put_contents($directory . '.htaccess', $htaccess);
 	}
 }
-
-?>

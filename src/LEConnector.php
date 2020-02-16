@@ -32,7 +32,6 @@ namespace LEClient;
  * @author     Youri van Weegberg <youri@yourivw.nl>
  * @copyright  2018 Youri van Weegberg
  * @license    https://opensource.org/licenses/mit-license.php  MIT License
- * @version    1.1.4
  * @link       https://github.com/yourivw/LEClient
  * @since      Class available since Release 1.0.0
  */
@@ -59,7 +58,7 @@ class LEConnector
      *
      * @param int 		$log			The level of logging. Defaults to no logging. LOG_OFF, LOG_STATUS, LOG_DEBUG accepted.
      * @param string	$baseURL 		The LetsEncrypt server URL to make requests to.
-     * @param array	$accountKeys Array containing location of account keys files.
+     * @param array		$accountKeys 	Array containing location of account keys files.
      */
 	public function __construct($log, $baseURL, $accountKeys)
 	{
@@ -88,7 +87,7 @@ class LEConnector
      */
 	private function getNewNonce()
 	{
-		if(strpos($this->head($this->newNonce)['header'], "200") == false) throw new \RuntimeException('No new nonce.');
+		if($this->head($this->newNonce)['status'] !== 200) throw new \RuntimeException('No new nonce.');
 	}
 
     /**
@@ -98,7 +97,7 @@ class LEConnector
      * @param string 	$URL 	The URL or partial URL to make the request to. If it is partial, the baseURL will be prepended.
      * @param object 	$data  	The body to attach to a POST request. Expected as a JSON encoded string.
      *
-     * @return array 	Returns an array with the keys 'request', 'header' and 'body'.
+     * @return array 	Returns an array with the keys 'request', 'header', 'status' and 'body'.
      */
 	private function request($method, $URL, $data = null)
 	{
@@ -133,18 +132,28 @@ class LEConnector
             throw new \RuntimeException('Curl: ' . curl_error($handle));
         }
 
-        $header_size = curl_getinfo($handle, CURLINFO_HEADER_SIZE);
+        $headerSize = curl_getinfo($handle, CURLINFO_HEADER_SIZE);
+        $statusCode = curl_getinfo($handle, CURLINFO_HTTP_CODE);
 
-        $header = substr($response, 0, $header_size);
-        $body = substr($response, $header_size);
+        $header = substr($response, 0, $headerSize);
+        $body = substr($response, $headerSize);
 		$jsonbody = json_decode($body, true);
-		$jsonresponse = array('request' => $method . ' ' . $requestURL, 'header' => $header, 'body' => $jsonbody === null ? $body : $jsonbody);
-		if($this->log >= LECLient::LOG_DEBUG) LEFunctions::log($jsonresponse);
-
-		if(	(($method == 'POST' OR $method == 'GET') AND strpos($header, "200") === false AND strpos($header, "201 Created") === false) OR
-			($method == 'HEAD' AND strpos($header, "200") === false))
+		$jsonresponse = array(
+            'request' => $method . ' ' . $requestURL,
+            'header' => $header,
+            'status' => $statusCode,
+            'body' => $jsonbody === null ? $body : $jsonbody,
+        );
+		if($this->log instanceof \Psr\Log\LoggerInterface) 
 		{
-			throw new \RuntimeException('Invalid response on ' . $requestURL . ', header: ' . $header);
+			$this->log->debug($method . ' response received', $jsonresponse);
+		}
+		elseif($this->log >= LEClient::LOG_DEBUG) LEFunctions::log($jsonresponse);
+
+		if((($method == 'POST' OR $method == 'GET') AND $statusCode !== 200 AND $statusCode !== 201) OR
+			($method == 'HEAD' AND $statusCode !== 200))
+		{
+			throw new \RuntimeException('Invalid response, header: ' . $header);
 		}
 
 		if(preg_match('~Replay\-Nonce: (\S+)~i', $header, $matches))
@@ -164,7 +173,7 @@ class LEConnector
      *
      * @param string	$url 	The URL or partial URL to make the request to. If it is partial, the baseURL will be prepended.
      *
-     * @return array 	Returns an array with the keys 'request', 'header' and 'body'.
+     * @return array 	Returns an array with the keys 'request', 'header', 'status' and 'body'.
      */
 	public function get($url)
 	{
@@ -177,7 +186,7 @@ class LEConnector
      * @param string 	$url	The URL or partial URL to make the request to. If it is partial, the baseURL will be prepended.
 	 * @param object 	$data	The body to attach to a POST request. Expected as a json string.
      *
-     * @return array 	Returns an array with the keys 'request', 'header' and 'body'.
+     * @return array 	Returns an array with the keys 'request', 'header', 'status' and 'body'.
      */
 	public function post($url, $data = null)
 	{
@@ -189,7 +198,7 @@ class LEConnector
      *
      * @param string 	$url	The URL or partial URL to make the request to. If it is partial, the baseURL will be prepended.
      *
-     * @return array	Returns an array with the keys 'request', 'header' and 'body'.
+     * @return array	Returns an array with the keys 'request', 'header', 'status' and 'body'.
      */
 	public function head($url)
 	{
@@ -275,5 +284,3 @@ class LEConnector
         return json_encode($data);
     }
 }
-
-?>

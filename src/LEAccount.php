@@ -109,7 +109,7 @@ class LEAccount
 		$sign = $this->connector->signRequestJWK(array('onlyReturnExisting' => true), $this->connector->newAccount);
 		$post = $this->connector->post($this->connector->newAccount, $sign);
 
-		if(strpos($post['header'], "200 OK") !== false)
+		if(strpos($post['header'], "200") !== false)
 		{
 			if(preg_match('~Location: (\S+)~i', $post['header'], $matches)) return trim($matches[1]);
 		}
@@ -123,7 +123,7 @@ class LEAccount
 	{
 		$sign = $this->connector->signRequestKid(array('' => ''), $this->connector->accountURL, $this->connector->accountURL);
 		$post = $this->connector->post($this->connector->accountURL, $sign);
-		if(strpos($post['header'], "200 OK") !== false)
+		if(strpos($post['header'], "200") !== false)
 		{
 			$this->id = $post['body']['id'];
 			$this->key = $post['body']['key'];
@@ -152,7 +152,7 @@ class LEAccount
 
 		$sign = $this->connector->signRequestKid(array('contact' => $contact), $this->connector->accountURL, $this->connector->accountURL);
 		$post = $this->connector->post($this->connector->accountURL, $sign);
-		if(strpos($post['header'], "200 OK") !== false)
+		if(strpos($post['header'], "200") !== false)
 		{
 			$this->id = $post['body']['id'];
 			$this->key = $post['body']['key'];
@@ -188,7 +188,7 @@ class LEAccount
 		$outerPayload = $this->connector->signRequestJWK($innerPayload, $this->connector->keyChange, $this->accountKeys['private_key'].'.new');
 		$sign = $this->connector->signRequestKid($outerPayload, $this->connector->accountURL, $this->connector->keyChange);
 		$post = $this->connector->post($this->connector->keyChange, $sign);
-		if(strpos($post['header'], "200 OK") !== false)
+		if(strpos($post['header'], "200") !== false)
 		{
 			$this->getLEAccountData();
 
@@ -215,7 +215,7 @@ class LEAccount
 	{
 		$sign = $this->connector->signRequestKid(array('status' => 'deactivated'), $this->connector->accountURL, $this->connector->accountURL);
 		$post = $this->connector->post($this->connector->accountURL, $sign);
-		if(strpos($post['header'], "200 OK") !== false)
+		if(strpos($post['header'], "200") !== false)
 		{
 			$this->connector->accountDeactivated = true;
 			if($this->log >= LECLient::LOG_STATUS) LEFunctions::log('Account deactivated.', 'function deactivateAccount');

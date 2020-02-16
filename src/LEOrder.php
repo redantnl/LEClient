@@ -108,7 +108,7 @@ class LEOrder
 			if (filter_var($this->orderURL, FILTER_VALIDATE_URL))
 			{
 				$get = $this->connector->get($this->orderURL);
-				if(strpos($get['header'], "200 OK") !== false && $get['body']['status'] != "invalid")
+				if(strpos($get['header'], "200") !== false && $get['body']['status'] != "invalid")
 				{
 					$orderdomains = array_map(function($ident) { return $ident['value']; }, $get['body']['identifiers']);
 					$diff = array_merge(array_diff($orderdomains, $domains), array_diff($domains, $orderdomains));
@@ -234,7 +234,7 @@ class LEOrder
 	private function updateOrderData()
 	{
 		$get = $this->connector->get($this->orderURL);
-		if(strpos($get['header'], "200 OK") !== false)
+		if(strpos($get['header'], "200") !== false)
 		{
 			$this->status = $get['body']['status'];
 			$this->expires = $get['body']['expires'];
@@ -375,7 +375,7 @@ class LEOrder
 								{
 									$sign = $this->connector->signRequestKid(array('keyAuthorization' => $keyAuthorization), $this->connector->accountURL, $challenge['url']);
 									$post = $this->connector->post($challenge['url'], $sign);
-									if(strpos($post['header'], "200 OK") !== false)
+									if(strpos($post['header'], "200") !== false)
 									{
 										if($localcheck && $this->log >= LECLient::LOG_STATUS) LEFunctions::log('HTTP challenge for \'' . $identifier . '\' valid.', 'function verifyPendingOrderAuthorization');
 										while($auth->status == 'pending')
@@ -397,7 +397,7 @@ class LEOrder
 								{
 									$sign = $this->connector->signRequestKid(array('keyAuthorization' => $keyAuthorization), $this->connector->accountURL, $challenge['url']);
 									$post = $this->connector->post($challenge['url'], $sign);
-									if(strpos($post['header'], "200 OK") !== false)
+									if(strpos($post['header'], "200") !== false)
 									{
 										if($localcheck && $this->log >= LECLient::LOG_STATUS) LEFunctions::log('DNS challenge for \'' . $identifier . '\' valid.', 'function verifyPendingOrderAuthorization');
 										while($auth->status == 'pending')
@@ -436,7 +436,7 @@ class LEOrder
 			{
 				$sign = $this->connector->signRequestKid(array('status' => 'deactivated'), $this->connector->accountURL, $auth->authorizationURL);
 				$post = $this->connector->post($auth->authorizationURL, $sign);
-				if(strpos($post['header'], "200 OK") !== false)
+				if(strpos($post['header'], "200") !== false)
 				{
 					if($this->log >= LECLient::LOG_STATUS) LEFunctions::log('Authorization for \'' . $identifier . '\' deactivated.', 'function deactivateOrderAuthorization');
 					$this->updateAuthorizations();
@@ -520,7 +520,7 @@ class LEOrder
 				$csr = trim(LEFunctions::Base64UrlSafeEncode(base64_decode($csr)));
 				$sign = $this->connector->signRequestKid(array('csr' => $csr), $this->connector->accountURL, $this->finalizeURL);
 				$post = $this->connector->post($this->finalizeURL, $sign);
-				if(strpos($post['header'], "200 OK") !== false)
+				if(strpos($post['header'], "200") !== false)
 				{
 					$this->status = $post['body']['status'];
 					$this->expires = $post['body']['expires'];
@@ -574,7 +574,7 @@ class LEOrder
 		if($this->status == 'valid' && !empty($this->certificateURL))
 		{
 			$get = $this->connector->get($this->certificateURL);
-			if(strpos($get['header'], "200 OK") !== false)
+			if(strpos($get['header'], "200") !== false)
 			{
 				if(preg_match_all('~(-----BEGIN\sCERTIFICATE-----[\s\S]+?-----END\sCERTIFICATE-----)~i', $get['body'], $matches))
 				{
@@ -634,7 +634,7 @@ class LEOrder
 
 				$sign = $this->connector->signRequestJWK(array('certificate' => $certificate, 'reason' => $reason), $this->connector->revokeCert, $this->certificateKeys['private_key']);
 				$post = $this->connector->post($this->connector->revokeCert, $sign);
-				if(strpos($post['header'], "200 OK") !== false)
+				if(strpos($post['header'], "200") !== false)
 				{
 					if($this->log >= LECLient::LOG_STATUS) LEFunctions::log('Certificate for order \'' . $this->basename . '\' revoked.', 'function revokeCertificate');
 					return true;
